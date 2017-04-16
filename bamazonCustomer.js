@@ -1,5 +1,6 @@
 var mysql = require("mysql");
 var inquirer = require("inquirer");
+const {table} = require("table");
 
 
 var available = 0;
@@ -7,6 +8,8 @@ var price = 0;
 var totalCost = 0;
 var selection = 0;
 var desired = 0;
+var data = [["Product ID", "Product Name", "Price"]];
+var output;
 
 var connection = mysql.createConnection({
     host: "localhost",
@@ -62,6 +65,8 @@ function listItems(){
         for (var i=0; i<res.length; i++) {
             printItems(res, i);
         }
+        output = table(data);
+        console.log(output);        
         mainMenu();
         
     });
@@ -103,15 +108,17 @@ function purchaseItem(selection, desired){
         console.log("Sorry, we don't have enough of that item in stock to fulfill your order.");
         newTransaction();
     } else {
-        console.log("can purchase");
-        totalCost = desired * price;
+        totalCost = parseFloat(desired * price).toFixed(2);
         completePurchase(selection, desired);
     }
 };
 
 
 function printItems(results, i){
-    console.log("ID: " + results[i].id + " | " + results[i].product_name + " | Price: " + results[i].price);
+    var currentRow = [];
+    currentRow = [results[i].id, results[i].product_name, results[i].price];
+    data.push(currentRow);
+    // console.log("ID: " + results[i].id + " | " + results[i].product_name + " | Price: " + results[i].price);
 };
 
 
@@ -123,6 +130,17 @@ function completePurchase(selection, desired){
         function(err){
             if(err) throw err;
         });
+
+    connection.query("UPDATE products SET product_sales = product_sales + " + totalCost + " WHERE ?", [{id: selection}], 
+        function(err){
+            if(err) throw err;
+        });
+
+    connection.query(
+        "UPDATE departments JOIN products ON departments.department_name = products.department_name SET departments.total_sales = departments.total_sales + " + totalCost + "WHERE products.id = " + selection, 
+            function(err){
+            if(err) throw err;
+        });        
     console.log("Thank you for your purchase. Your total cost today is $" + totalCost);
     newTransaction();
 };
